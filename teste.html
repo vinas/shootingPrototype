@@ -1,0 +1,205 @@
+<html>
+<head>
+    <script type="text/javascript" src="js/libs/jquery-2.1.1.min.js"></script>
+</head>
+<style type="text/css">
+
+    #source {
+        position: absolute;
+        float: left;
+    }
+
+    #bullet {
+        position: absolute;
+        float: left;
+        display: none;
+    }
+
+    #target {
+        position: absolute;
+    }
+
+    #background {
+        position: absolute;
+        float: left;
+        background-color: #CCC;
+        width: 500px;
+        height: 500px;
+    }
+
+    #instructions{
+        float: left;
+        position: absolute;
+        top: 500px;
+    }
+
+</style>
+<body>
+<div id="background">
+    <div id="source">S</div>
+    <div id="bullet">X</div>
+    <div id="target">T</div>
+</div>
+<div id="instructions">
+    <ul>
+        <li>Press "Enter" to relocate Source and Target</li>
+        <li>Press "Space" to fire</li>
+        <li>Click on the square to relocate Target</li>
+        <li>---</li>
+        <li>Current Speed is: <input type="text" id="speed" onchange="setNewSpeed()" value="15" /></li>
+    </ul>
+</div>
+</body>
+<script>
+    
+    $(document).on('keydown', function(e) {
+        switch (e.which) {
+            case 13:
+                relocateObjects();
+                break;
+            case 32:
+                fire();
+                break;
+        }
+    });
+
+    $(document).on('click', function(e) {
+        if ((e.pageX < 500) && (e.pageY < 500))
+            relocateTarget(e.pageX - 10, e.pageY - 10);
+    });
+
+    $(document).on('ready', function(e) {
+        relocateObjects();
+    });
+
+    var standardSpeed = $('#speed').val();
+
+    function setNewSpeed()
+    {
+        var newSpeed = $('#speed').val();
+        if (!isNaN(newSpeed))
+            standardSpeed = $('#speed').val();
+    }
+
+    function relocateObjects()
+    {
+        var sourcePos = getRandomCoords(),
+            targetPos = getRandomCoords();
+        $('#source').css('top', sourcePos[1]);
+        $('#source').css('left', sourcePos[0]);
+        $('#target').css('top', targetPos[1]);
+        $('#target').css('left', targetPos[0]);
+    }
+
+    function relocateTarget(left, top)
+    {
+        $('#target').css('top', top);
+        $('#target').css('left', left);
+    }
+
+    function fire()
+    {
+        var bulletPos = getObjectPosition($('#source'));
+        var targetPos = getObjectPosition($('#target'));
+        bulletPos[0] = parseInt(bulletPos[0]);
+        bulletPos[1] = parseInt(bulletPos[1]);
+        targetPos[0] = parseInt(targetPos[0]);
+        targetPos[1] = parseInt(targetPos[1]);
+        var deltaX = targetPos[0] - bulletPos[0];
+        var deltaY = targetPos[1] - bulletPos[1];
+        var shooterPosX = bulletPos[0];
+        var shooterPosY = bulletPos[1];
+        var inclination = (deltaX != 0) ? (deltaY/deltaX).toFixed(4) : 0;
+        var variationRate = carlosFormula(standardSpeed, inclination);
+
+        $('#bullet').show();
+        moveBullet();
+
+        function moveBullet()
+        {
+            if ((!arrived()) && (!isNaN(variationRate))) {
+                setBulletNewPos();
+                $('#bullet').css('top', bulletPos[1]);
+                $('#bullet').css('left', bulletPos[0]);
+
+                setTimeout(function() {
+                    moveBullet();
+                }, 10);
+                return;
+            } 
+            $('#bullet').hide();
+        }
+
+        function setBulletNewCoord(sourceCoord, destCoord)
+        {
+            return (sourceCoord < destCoord) ? sourceCoord + variationRate : sourceCoord - variationRate;
+        }
+
+        function setBulletNewPos()
+        {
+            if (bulletPos[0] != targetPos[0]) {
+                bulletPos[0] = setBulletNewCoord(bulletPos[0], targetPos[0], variationRate);
+                bulletPos[1] = Math.round(inclination * (bulletPos[0] - shooterPosX) + shooterPosY);
+                return;
+            }
+            bulletPos[1] = setBulletNewCoord(bulletPos[1], targetPos[1], variationRate);
+        }
+
+        function arrived()
+        {
+            return (
+                // is it the same original position
+                (
+                    (shooterPosX == targetPos[0])
+                    && (shooterPosY == targetPos[1])
+                )
+                ||
+                (
+                    (
+                        // are original X coords different
+                        (shooterPosX != targetPos[0])
+                        // has arrived or passed to X target
+                        && (
+                            ((shooterPosX > targetPos[0]) && (bulletPos[0] <= targetPos[0]))
+                            || ((shooterPosX < targetPos[0]) && (bulletPos[0] >= targetPos[0]))
+                        )
+                    )
+                    ||
+                    (
+                        // are X coords equal
+                        (shooterPosX == targetPos[0])
+                        // has arrived or passed to Y target
+                        && (
+                            ((shooterPosY > targetPos[1]) && (bulletPos[1] <= targetPos[1]))
+                            || ((shooterPosY < targetPos[1]) && (bulletPos[1] >= targetPos[1]))
+                        )
+                        
+                    )
+                )
+            );
+        }
+    }
+
+    function getRandomCoords()
+    {
+        return new Array(
+                Math.round((Math.random() * (500 - 10))),
+                Math.round((Math.random() * (500 - 10)))
+            );
+    }
+
+    function carlosFormula(standardSpeed, inclination)
+    {
+        return Math.sqrt(standardSpeed / (parseFloat(Math.pow(inclination,2)+1)));
+    }
+
+    function getObjectPosition(object)
+    {
+        return new Array(
+                object.css("left").replace(new RegExp("px", 'g'), ""),
+                object.css("top").replace(new RegExp("px", 'g'), "")
+            );
+    }
+
+</script>
+</html>
